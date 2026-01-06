@@ -4,6 +4,8 @@
 An interactive educational tool for 9th grade Cryptography classes.
 Simulates the Ancient Spartan Scytale cipher with a 3D visualizer.
 
+[**LIVE DEMO**](https://vladimirlopez.github.io/scytale-simulation/)
+
 ## Features
 - **Interactive Scytale Stick**: Adjust diameter (faces) and drag to rotate.
 - **Encode / Decode Modes**: Real-time visualization of the wrapping process.
