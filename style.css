@@ -1,0 +1,396 @@
+:root {
+    --bg-dark: #0f1115;
+    --bg-panel: rgba(30, 32, 40, 0.7);
+    --accent-gold: #d4af37;
+    --accent-gold-glow: rgba(212, 175, 55, 0.5);
+    --text-main: #e0e0e0;
+    --text-dim: #a0a0a0;
+    --font-display: 'Cinzel', serif;
+    --font-body: 'Outfit', sans-serif;
+    --rod-color: #3e2723;
+    /* Dark wood */
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-body);
+    background-color: var(--bg-dark);
+    background-image:
+        radial-gradient(circle at 10% 20%, rgba(20, 20, 30, 1) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(40, 30, 20, 0.4) 0%, transparent 40%);
+    color: var(--text-main);
+    height: 100vh;
+    overflow: hidden;
+    /* App-like feel */
+    display: flex;
+    flex-direction: column;
+}
+
+#app {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* Header */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+h1 {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.accent {
+    color: var(--accent-gold);
+    text-shadow: 0 0 10px var(--accent-gold-glow);
+}
+
+.nav-btn {
+    background: transparent;
+    border: 1px solid var(--accent-gold);
+    color: var(--accent-gold);
+    padding: 8px 16px;
+    font-family: var(--font-body);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-left: 10px;
+}
+
+.nav-btn:hover {
+    background: var(--accent-gold);
+    color: var(--bg-dark);
+    box-shadow: 0 0 15px var(--accent-gold-glow);
+}
+
+.nav-btn.special {
+    background: rgba(212, 175, 55, 0.1);
+}
+
+/* Main Layout */
+main {
+    display: grid;
+    grid-template-columns: 300px 1fr 300px;
+    gap: 20px;
+    flex: 1;
+    min-height: 0;
+    /* Important for scroll within grid */
+}
+
+.card {
+    background: var(--bg-panel);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* Controls */
+.controls-panel {
+    gap: 24px;
+}
+
+label {
+    display: block;
+    font-size: 0.8rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+}
+
+textarea {
+    width: 100%;
+    height: 150px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 12px;
+    color: var(--text-main);
+    font-family: monospace;
+    font-size: 1rem;
+    resize: none;
+    transition: border-color 0.3s;
+}
+
+textarea:focus {
+    outline: none;
+    border-color: var(--accent-gold);
+}
+
+.slider-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent-gold);
+}
+
+#diameter-value {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--accent-gold);
+    min-width: 30px;
+    text-align: center;
+}
+
+.toggle-switch {
+    display: flex;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    padding: 4px;
+}
+
+.toggle-switch button {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 8px;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.3s;
+}
+
+.toggle-switch button.active {
+    background: var(--accent-gold);
+    color: var(--bg-dark);
+    font-weight: bold;
+}
+
+/* Visualization */
+.visualization-panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    perspective: 1200px;
+}
+
+.scytale-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.rod-wrapper {
+    position: relative;
+    transform-style: preserve-3d;
+    /* Make it larger */
+    width: 40px;
+    /* Base face width, will scale */
+    height: 400px;
+    transition: transform 0.1s linear;
+    /* For dragging */
+}
+
+.cylinder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+}
+
+.face {
+    position: absolute;
+    width: 50px;
+    /* Fixed face width */
+    height: 100%;
+    background: url('./assets/parchment.png');
+    /* Fallback color */
+    background-color: #f0e6d2;
+    background-size: cover;
+    border-left: 1px solid rgba(0, 0, 0, 0.1);
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 10px;
+    /* Backface visibility? We want to see it as a solid obj */
+    backface-visibility: hidden;
+
+    /* Text styling on the rod */
+    font-family: monospace;
+    font-weight: bold;
+    font-size: 24px;
+    color: #2c1a0f;
+    overflow: hidden;
+    text-orientation: upright;
+    writing-mode: vertical-rl;
+    /* Write down the face? No, we plan to write ACROSS faces in rows. */
+    /* Wait, "Lengthwise". So letters go down the rod? Or across? */
+    /* If wrapped strip: H E L L O is on the strip. */
+    /* On the rod, the strip spirals. */
+    /* Let's simulate distinct cells on the face. */
+}
+
+.face-letter {
+    height: 40px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* Border for grid? */
+    /* border-bottom: 1px dotted rgba(0,0,0,0.2); */
+}
+
+/* Output */
+.output-panel {
+    gap: 10px;
+}
+
+.output-panel h2 {
+    font-family: var(--font-display);
+    color: var(--accent-gold);
+    font-size: 1.2rem;
+}
+
+.result-box {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px dashed var(--text-dim);
+    border-radius: 8px;
+    padding: 15px;
+    word-break: break-all;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 1.1rem;
+}
+
+.action-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--text-main);
+    color: var(--bg-dark);
+    border: none;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.action-btn:hover {
+    background: var(--accent-gold);
+}
+
+/* Modals */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 1;
+    transition: opacity 0.3s;
+}
+
+.modal.hidden {
+    display: none;
+    opacity: 0;
+}
+
+.modal-content {
+    background: #1a1c23;
+    padding: 40px;
+    border-radius: 12px;
+    border: 1px solid var(--accent-gold);
+    max-width: 600px;
+    width: 90%;
+    position: relative;
+    color: var(--text-main);
+}
+
+.close-modal {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 2rem;
+    cursor: pointer;
+}
+
+h2,
+h3 {
+    margin-bottom: 10px;
+    color: var(--accent-gold);
+    font-family: var(--font-display);
+}
+
+p {
+    line-height: 1.6;
+    margin-bottom: 15px;
+}
+
+.challenge-code {
+    background: #000;
+    color: var(--accent-gold);
+    font-family: monospace;
+    padding: 15px;
+    text-align: center;
+    font-size: 1.5rem;
+    letter-spacing: 5px;
+    margin: 20px 0;
+    border: 1px solid var(--accent-gold);
+}
+
+#challenge-input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    font-size: 1rem;
+}
+
+#btn-submit-challenge {
+    background: var(--accent-gold);
+    border: none;
+    padding: 10px 20px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+}
+
+@media (max-width: 900px) {
+    main {
+        grid-template-columns: 1fr;
+        overflow-y: auto;
+    }
+
+    .visualization-panel {
+        min-height: 300px;
+    }
+}
