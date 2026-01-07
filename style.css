@@ -486,6 +486,27 @@ input[type="range"] {
     color: var(--text-main);
 }
 
+.video-container {
+    position: relative;
+    padding-bottom: 56.25%;
+    /* 16:9 Aspect Ratio */
+    height: 0;
+    overflow: hidden;
+    margin: 20px 0;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: #000;
+}
+
+.video-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
 /* Challenge Mode */
 .challenge-code {
     background: var(--bg-input);
