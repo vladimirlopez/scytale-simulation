@@ -127,9 +127,29 @@ function bindEvents() {
             resetChallengeGame();
         }
     });
+    const stopVideo = () => {
+        const learnModal = document.getElementById('modal-learn');
+        const iframe = learnModal.querySelector('iframe');
+        if (iframe) {
+            const src = iframe.src;
+            iframe.src = '';
+            iframe.src = src;
+        }
+    };
+
     closeModals.forEach(btn => btn.addEventListener('click', (e) => {
-        e.target.closest('.modal').classList.add('hidden');
+        const modal = e.target.closest('.modal');
+        modal.classList.add('hidden');
+        if (modal.id === 'modal-learn') stopVideo();
     }));
+
+    // Close on background click
+    window.addEventListener('click', (e) => {
+        if (e.target.classList.contains('modal')) {
+            e.target.classList.add('hidden');
+            if (e.target.id === 'modal-learn') stopVideo();
+        }
+    });
 
     // Inputs with character limit
     if (el.input) {
