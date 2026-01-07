@@ -482,16 +482,12 @@ h2 {
 
 /* Decoded Message Display */
 .decoded-message-container {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: var(--bg-dark);
-    /* Ensure it covers content behind when sticky */
+    background: rgba(0, 0, 0, 0.4);
     padding: 20px;
     border-radius: 8px;
     border: 2px solid var(--accent-gold);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    margin-bottom: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    margin: 10px 0;
 }
 
 .decoded-message-container label {
