@@ -30,7 +30,10 @@
       <div class="controls-panel card">
         <div class="input-group">
           <label for="message-input">MESSAGE</label>
-          <textarea id="message-input" placeholder="Enter your secret message here..."></textarea>
+          <textarea id="message-input" maxlength="100" placeholder="Enter your secret message here..."></textarea>
+          <div class="char-counter">
+            <span id="char-count">0</span>/<span id="char-limit">100</span> characters
+          </div>
         </div>
 
         <div class="settings-group">
@@ -68,7 +71,12 @@
         </div>
 
         <div class="strip-view-container">
-          <label>THE UNWRAPPED STRIP (CIPHERTEXT)</label>
+          <div class="strip-header">
+            <label>THE UNWRAPPED STRIP (CIPHERTEXT)</label>
+            <button id="btn-copy-strip" class="copy-btn" title="Copy cipher text to clipboard">
+              📋 Copy Strip
+            </button>
+          </div>
           <div class="strip-track">
             <div id="strip-content" class="parchment-strip">
               <!-- Strip letters go here -->
@@ -118,20 +126,41 @@
     </div>
 
     <div id="modal-challenge" class="modal hidden">
-      <div class="modal-content">
+      <div class="modal-content challenge-game">
         <span class="close-modal">&times;</span>
         <h2>Cryptography Challenge</h2>
+
+        <!-- Game Progress -->
+        <div class="game-progress">
+          <span class="progress-label">Challenge <span id="challenge-number">1</span>/<span
+              id="challenge-total">5</span></span>
+          <span class="score-label">Score: <span id="challenge-score">0</span></span>
+        </div>
+
         <p>Your commander has intercepted a Spartan messenger. The strip reads:</p>
-        <div class="challenge-code">H_A_T_L_E_L_O</div>
-        <!-- dynamic challenge -->
-        <p id="challenge-text" class="challenge-text"></p>
+        <div class="challenge-code" id="challenge-cipher">LOADING...</div>
         <p>Hint: We believe the rod used had <span id="challenge-hint-faces">?</span> faces.</p>
-        <input type="text" id="challenge-input" placeholder="Decoded message...">
-        <button id="btn-submit-challenge">Submit Decrypt</button>
-        <div id="challenge-success" class="hidden">
-          <h3>Correct!</h3>
-          <p>You have proven your skills.</p>
-          <button id="btn-download-cert">Download Certificate</button>
+
+        <div class="challenge-input-group">
+          <input type="text" id="challenge-input" placeholder="Decoded message...">
+          <button id="btn-submit-challenge">Submit</button>
+        </div>
+
+        <div id="challenge-feedback" class="challenge-feedback hidden"></div>
+
+        <div id="challenge-success" class="challenge-success hidden">
+          <h3>🎉 Correct!</h3>
+          <p>Well done, cryptographer!</p>
+          <button id="btn-next-challenge" class="next-btn">Next Challenge →</button>
+        </div>
+
+        <div id="game-complete" class="game-complete hidden">
+          <h3>🏆 All Challenges Complete!</h3>
+          <p>Final Score: <span id="final-score">0</span>/<span id="final-total">5</span></p>
+          <div class="game-complete-buttons">
+            <button id="btn-download-cert">Download Certificate</button>
+            <button id="btn-reset-game" class="reset-btn">Play Again</button>
+          </div>
         </div>
       </div>
     </div>

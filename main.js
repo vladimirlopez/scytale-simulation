@@ -1,19 +1,36 @@
 
 import './style.css'
 
-// Default Configuration
+// Configuration
 const CONFIG = {
-    faceHeight: 60, // Match CSS
+    faceHeight: 60,
     defaultFaces: 6,
-    defaultMessage: "SCYTALE CIPHER"
+    defaultMessage: "SCYTALE CIPHER",
+    maxMessageLength: 100
 };
+
+// Challenge Bank - Array of challenges with increasing difficulty
+const CHALLENGE_BANK = [
+    { plaintext: "HELLO_SPARTAN", faces: 3 },
+    { plaintext: "SCYTALE_IS_COOL", faces: 3 },
+    { plaintext: "SECRET_MESSAGE", faces: 4 },
+    { plaintext: "ATTACK_AT_DAWN", faces: 4 },
+    { plaintext: "CRYPTOGRAPHY_RULES", faces: 5 }
+];
 
 // State
 const state = {
     message: CONFIG.defaultMessage,
     faces: CONFIG.defaultFaces,
     mode: 'encode',
-    rotationX: 0
+    rotationX: 0,
+    currentCiphertext: '', // Track for copy functionality
+
+    // Challenge game state
+    challengeIndex: 0,
+    challengeScore: 0,
+    shuffledChallenges: [],
+    gameCompleted: false
 };
 
 // Elements
@@ -28,8 +45,47 @@ const el = {
     btnDecode: document.getElementById('mode-decode'),
     scene: document.querySelector('.scene-3d'),
     gridContent: document.getElementById('grid-content'),
-    decodedMessage: document.getElementById('decoded-message')
+    decodedMessage: document.getElementById('decoded-message'),
+    charCount: document.getElementById('char-count'),
+    charCounter: document.querySelector('.char-counter'),
+    btnCopyStrip: document.getElementById('btn-copy-strip')
 };
+
+// Shuffle array helper
+function shuffleArray(array) {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+// Encode plaintext to ciphertext (Row-Major Fill, Column-Major Read)
+function encodeMessage(plaintext, faces) {
+    const msg = plaintext.replace(/[\r\n]+/g, '');
+    const n = faces;
+    let ROW_LEN = Math.ceil(msg.length / n);
+    if (ROW_LEN < 1) ROW_LEN = 1;
+
+    let grid = {};
+    for (let i = 0; i < msg.length; i++) {
+        const faceIdx = Math.floor(i / ROW_LEN);
+        const colIdx = i % ROW_LEN;
+        if (!grid[faceIdx]) grid[faceIdx] = [];
+        grid[faceIdx][colIdx] = msg[i];
+    }
+
+    let ciphertext = "";
+    for (let c = 0; c < ROW_LEN; c++) {
+        for (let f = 0; f < n; f++) {
+            if (grid[f] && grid[f][c] !== undefined) {
+                ciphertext += grid[f][c];
+            }
+        }
+    }
+    return ciphertext;
+}
 
 function init() {
     try {
@@ -40,9 +96,15 @@ function init() {
         if (el.slider) el.slider.value = state.faces;
         if (el.sliderVal) el.sliderVal.textContent = state.faces;
 
+        // Initialize character counter
+        updateCharCounter();
+
         bindEvents();
         renderCylinderStructure();
         updateVisuals();
+
+        // Initialize challenge game
+        initChallengeGame();
 
         console.log("Initialization Complete.");
     } catch (e) {
@@ -58,15 +120,22 @@ function bindEvents() {
     const closeModals = document.querySelectorAll('.close-modal');
 
     if (btnLearn) btnLearn.addEventListener('click', () => document.getElementById('modal-learn').classList.remove('hidden'));
-    if (btnChallenge) btnChallenge.addEventListener('click', () => document.getElementById('modal-challenge').classList.remove('hidden'));
+    if (btnChallenge) btnChallenge.addEventListener('click', () => {
+        document.getElementById('modal-challenge').classList.remove('hidden');
+        // Reset game state when opening challenge
+        if (state.gameCompleted) {
+            resetChallengeGame();
+        }
+    });
     closeModals.forEach(btn => btn.addEventListener('click', (e) => {
         e.target.closest('.modal').classList.add('hidden');
     }));
 
-    // Inputs
+    // Inputs with character limit
     if (el.input) {
         el.input.addEventListener('input', (e) => {
             state.message = e.target.value;
+            updateCharCounter();
             updateVisuals();
         });
         // Handle paste to clean newlines
@@ -78,11 +147,14 @@ function bindEvents() {
             const start = el.input.selectionStart;
             const end = el.input.selectionEnd;
             const val = el.input.value;
-            const newVal = val.slice(0, start) + cleanText + val.slice(end);
+            const remainingSpace = CONFIG.maxMessageLength - val.length + (end - start);
+            const truncatedText = cleanText.slice(0, remainingSpace);
+            const newVal = val.slice(0, start) + truncatedText + val.slice(end);
 
-            el.input.value = newVal;
-            el.input.selectionStart = el.input.selectionEnd = start + cleanText.length;
-            state.message = newVal;
+            el.input.value = newVal.slice(0, CONFIG.maxMessageLength);
+            el.input.selectionStart = el.input.selectionEnd = start + truncatedText.length;
+            state.message = el.input.value;
+            updateCharCounter();
             updateVisuals();
         });
     }
@@ -96,6 +168,11 @@ function bindEvents() {
 
     if (el.btnEncode) el.btnEncode.addEventListener('click', () => setMode('encode'));
     if (el.btnDecode) el.btnDecode.addEventListener('click', () => setMode('decode'));
+
+    // Copy Strip Button
+    if (el.btnCopyStrip) {
+        el.btnCopyStrip.addEventListener('click', copyStripToClipboard);
+    }
 
     // Drag Rotation
     let isDragging = false;
@@ -123,12 +200,63 @@ function bindEvents() {
         });
     }
 
-    // Challenge
+    // Challenge Game Events
     const btnSubmit = document.getElementById('btn-submit-challenge');
     if (btnSubmit) btnSubmit.addEventListener('click', checkChallenge);
 
+    const btnNext = document.getElementById('btn-next-challenge');
+    if (btnNext) btnNext.addEventListener('click', nextChallenge);
+
+    const btnReset = document.getElementById('btn-reset-game');
+    if (btnReset) btnReset.addEventListener('click', resetChallengeGame);
+
     const btnCert = document.getElementById('btn-download-cert');
     if (btnCert) btnCert.addEventListener('click', downloadCertificate);
+
+    // Allow Enter key to submit challenge
+    const challengeInput = document.getElementById('challenge-input');
+    if (challengeInput) {
+        challengeInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                checkChallenge();
+            }
+        });
+    }
+}
+
+function updateCharCounter() {
+    if (!el.charCount || !el.charCounter) return;
+
+    const length = state.message.length;
+    el.charCount.textContent = length;
+
+    // Update styling based on usage
+    el.charCounter.classList.remove('warning', 'error');
+    if (length >= CONFIG.maxMessageLength) {
+        el.charCounter.classList.add('error');
+    } else if (length >= CONFIG.maxMessageLength * 0.8) {
+        el.charCounter.classList.add('warning');
+    }
+}
+
+function copyStripToClipboard() {
+    if (!state.currentCiphertext) {
+        return;
+    }
+
+    navigator.clipboard.writeText(state.currentCiphertext).then(() => {
+        // Visual feedback
+        el.btnCopyStrip.classList.add('copied');
+        el.btnCopyStrip.textContent = '✓ Copied!';
+
+        setTimeout(() => {
+            el.btnCopyStrip.classList.remove('copied');
+            el.btnCopyStrip.textContent = '📋 Copy Strip';
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy to clipboard');
+    });
 }
 
 function setMode(mode) {
@@ -179,26 +307,18 @@ function updateVisuals() {
 
     let grid = {};
 
-    // PHYSICAL SCYTALE PROCESS:
-    // ENCODE: Write HORIZONTALLY on rod (Row-Major Fill), Unwrap strip (Column-Major Read)
-    // DECODE: Wrap strip around rod (Column-Major Fill), Read HORIZONTALLY (Row-Major Read)
-
     if (state.mode === 'encode') {
-        // ENCODE: Write message HORIZONTALLY on each face
-        // Face 0 gets first ROW_LEN chars, Face 1 gets next, etc.
         let ROW_LEN = Math.ceil(msg.length / n);
         if (ROW_LEN < 1) ROW_LEN = 1;
 
         for (let i = 0; i < msg.length; i++) {
-            const faceIdx = Math.floor(i / ROW_LEN); // Which face (row)
-            const colIdx = i % ROW_LEN;              // Which column position
+            const faceIdx = Math.floor(i / ROW_LEN);
+            const colIdx = i % ROW_LEN;
 
             if (!grid[faceIdx]) grid[faceIdx] = [];
             grid[faceIdx][colIdx] = msg[i];
         }
 
-        // Generate Ciphertext: Read COLUMN-BY-COLUMN (unwrap the strip)
-        // The strip winds around the rod, so we read down columns
         let ciphertext = "";
         for (let c = 0; c < ROW_LEN; c++) {
             for (let f = 0; f < n; f++) {
@@ -208,25 +328,40 @@ function updateVisuals() {
             }
         }
 
+        state.currentCiphertext = ciphertext; // Store for copy
         renderStrip(ciphertext);
         renderFaces(grid);
         render2DGrid(grid);
-        displayDecodedMessage(''); // Clear in encode mode
+        displayDecodedMessage('');
 
     } else {
-        // DECODE: Wrap ciphertext strip around rod (Column-Major Fill)
-        // Strip winds around, so each position goes to successive faces
         const ciphertext = msg;
+        state.currentCiphertext = ciphertext; // Store for copy
 
-        for (let i = 0; i < ciphertext.length; i++) {
-            const faceIdx = i % n;                   // Face cycles as strip wraps
-            const colIdx = Math.floor(i / n);        // Move to next column every N chars
+        // Calculate grid structure (how many characters in each row/face)
+        // This must match the encoding distribution
+        let ROW_LEN = Math.ceil(ciphertext.length / n);
+        if (ROW_LEN < 1) ROW_LEN = 1;
 
-            if (!grid[faceIdx]) grid[faceIdx] = [];
-            grid[faceIdx][colIdx] = ciphertext[i];
+        let rowSizes = new Array(n).fill(0);
+        let remaining = ciphertext.length;
+        for (let f = 0; f < n; f++) {
+            let size = Math.min(ROW_LEN, remaining);
+            rowSizes[f] = size;
+            remaining -= size;
         }
 
-        // The plaintext is now visible HORIZONTALLY on each face (Row-Major Read)
+        // Fill grid COLUMN-BY-COLUMN from ciphertext
+        let charIndex = 0;
+        for (let c = 0; c < ROW_LEN; c++) {
+            for (let f = 0; f < n; f++) {
+                if (c < rowSizes[f] && charIndex < ciphertext.length) {
+                    if (!grid[f]) grid[f] = [];
+                    grid[f][c] = ciphertext[charIndex++];
+                }
+            }
+        }
+
         let plaintext = "";
         for (let f = 0; f < n; f++) {
             if (grid[f]) {
@@ -248,15 +383,12 @@ function renderFaces(grid) {
 
     for (let f = 0; f < n; f++) {
         const faceDiv = document.getElementById(`face-${f}`);
-        // Add Marker to Face 0
         if (f === 0) {
-            faceDiv.style.borderLeft = "5px solid #d4af37"; // Gold-er border
-            // Check if marker exists? simpler to clear HTML in updateVisuals, which calls this.
-            // But main clear is before.
+            faceDiv.style.borderLeft = "5px solid #d4af37";
             const marker = document.createElement('div');
             marker.textContent = "START READING HERE";
             marker.style.position = "absolute";
-            marker.style.left = "-140px"; // Shift left
+            marker.style.left = "-140px";
             marker.style.top = "15px";
             marker.style.color = "#d4af37";
             marker.style.fontSize = "12px";
@@ -264,7 +396,6 @@ function renderFaces(grid) {
             marker.style.whiteSpace = "nowrap";
             faceDiv.appendChild(marker);
 
-            // Arrow
             const arrow = document.createElement('div');
             arrow.textContent = "➔";
             arrow.style.position = "absolute";
@@ -279,7 +410,6 @@ function renderFaces(grid) {
         }
 
         const rowData = grid[f] || [];
-        // Render only used columns to avoid overflow or empty divs
         const len = Math.max(maxCol, rowData.length);
         for (let c = 0; c < len; c++) {
             const char = rowData[c] || '';
@@ -313,30 +443,97 @@ function displayDecodedMessage(plaintext) {
     }
 }
 
-// Challenge Logic
-// SCYTALE_IS_COOL encoded with 3 faces using physical process:
-// Row-Major Fill: Face 0=SCYTA, Face 1=LE_IS, Face 2=_COOL
-// Column-Major Read: S-L-_, C-E-C, Y-_-O, T-I-O, A-S-L
-const CHALLENGE_CIPHER_REAL = "SL_CECY_OTIOASL";
-const CHALLENGE_KEY = 3;
-const CHALLENGE_ANSWER = "SCYTALE_IS_COOL";
+// ==================
+// Challenge Game System
+// ==================
 
-const codeEl = document.querySelector('.challenge-code');
-if (codeEl) codeEl.textContent = CHALLENGE_CIPHER_REAL;
+function initChallengeGame() {
+    state.shuffledChallenges = shuffleArray(CHALLENGE_BANK);
+    state.challengeIndex = 0;
+    state.challengeScore = 0;
+    state.gameCompleted = false;
+    loadCurrentChallenge();
+}
 
-const hintEl = document.getElementById('challenge-hint-faces');
-if (hintEl) hintEl.textContent = CHALLENGE_KEY;
+function loadCurrentChallenge() {
+    const challenge = state.shuffledChallenges[state.challengeIndex];
+    const ciphertext = encodeMessage(challenge.plaintext, challenge.faces);
+
+    // Update UI
+    const cipherEl = document.getElementById('challenge-cipher');
+    const hintEl = document.getElementById('challenge-hint-faces');
+    const numEl = document.getElementById('challenge-number');
+    const totalEl = document.getElementById('challenge-total');
+    const scoreEl = document.getElementById('challenge-score');
+    const inputEl = document.getElementById('challenge-input');
+    const feedbackEl = document.getElementById('challenge-feedback');
+    const successEl = document.getElementById('challenge-success');
+    const completeEl = document.getElementById('game-complete');
+
+    if (cipherEl) cipherEl.textContent = ciphertext;
+    if (hintEl) hintEl.textContent = challenge.faces;
+    if (numEl) numEl.textContent = state.challengeIndex + 1;
+    if (totalEl) totalEl.textContent = state.shuffledChallenges.length;
+    if (scoreEl) scoreEl.textContent = state.challengeScore;
+    if (inputEl) inputEl.value = '';
+    if (feedbackEl) feedbackEl.classList.add('hidden');
+    if (successEl) successEl.classList.add('hidden');
+    if (completeEl) completeEl.classList.add('hidden');
+}
 
 function checkChallenge() {
     const input = document.getElementById('challenge-input');
+    const feedbackEl = document.getElementById('challenge-feedback');
+    const successEl = document.getElementById('challenge-success');
     if (!input) return;
 
+    const challenge = state.shuffledChallenges[state.challengeIndex];
     const val = input.value.toUpperCase().replace(/\s/g, '_');
-    if (val === CHALLENGE_ANSWER) {
-        document.getElementById('challenge-success').classList.remove('hidden');
+
+    if (val === challenge.plaintext) {
+        // Correct!
+        state.challengeScore++;
+        document.getElementById('challenge-score').textContent = state.challengeScore;
+
+        feedbackEl.classList.add('hidden');
+        successEl.classList.remove('hidden');
+
+        // Check if game complete
+        if (state.challengeIndex >= state.shuffledChallenges.length - 1) {
+            showGameComplete();
+        }
     } else {
-        alert('Incorrect! Try setting the rod faces to ' + CHALLENGE_KEY + ' and decoding.');
+        // Incorrect - show feedback
+        feedbackEl.textContent = '❌ Incorrect! Try again. Hint: Use the simulator with ' + challenge.faces + ' faces in Decode mode.';
+        feedbackEl.classList.remove('hidden');
+        feedbackEl.classList.add('incorrect');
     }
+}
+
+function nextChallenge() {
+    state.challengeIndex++;
+    if (state.challengeIndex >= state.shuffledChallenges.length) {
+        showGameComplete();
+    } else {
+        loadCurrentChallenge();
+    }
+}
+
+function showGameComplete() {
+    state.gameCompleted = true;
+    const successEl = document.getElementById('challenge-success');
+    const completeEl = document.getElementById('game-complete');
+    const finalScoreEl = document.getElementById('final-score');
+    const finalTotalEl = document.getElementById('final-total');
+
+    if (successEl) successEl.classList.add('hidden');
+    if (completeEl) completeEl.classList.remove('hidden');
+    if (finalScoreEl) finalScoreEl.textContent = state.challengeScore;
+    if (finalTotalEl) finalTotalEl.textContent = state.shuffledChallenges.length;
+}
+
+function resetChallengeGame() {
+    initChallengeGame();
 }
 
 function downloadCertificate() {
@@ -354,24 +551,35 @@ function downloadCertificate() {
     ctx.lineWidth = 10;
     ctx.strokeRect(20, 20, 760, 560);
 
+    // Inner border
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(40, 40, 720, 520);
+
     // Text
-    ctx.font = '40px Cinzel'; // Font loading might be issue in canvas, usually fallbacks
+    ctx.font = '36px serif';
     ctx.fillStyle = '#d4af37';
     ctx.textAlign = 'center';
     ctx.fillText('CERTIFICATE OF MASTERY', 400, 100);
 
-    ctx.font = '24px sans-serif';
+    ctx.font = '22px sans-serif';
     ctx.fillStyle = '#e0e0e0';
-    ctx.fillText('This certifies that the student has successfully', 400, 200);
-    ctx.fillText('cracked the Spartan Scytale Cipher.', 400, 240);
+    ctx.fillText('This certifies that the student has successfully', 400, 180);
+    ctx.fillText('mastered the Spartan Scytale Cipher.', 400, 215);
 
-    ctx.font = '30px monospace';
+    // Score
+    ctx.font = '28px monospace';
     ctx.fillStyle = '#fff';
-    ctx.fillText(CHALLENGE_ANSWER, 400, 350);
+    ctx.fillText(`Score: ${state.challengeScore}/${state.shuffledChallenges.length}`, 400, 300);
+
+    // Trophy emoji area
+    ctx.font = '60px sans-serif';
+    ctx.fillText('🏆', 400, 400);
 
     ctx.font = '16px sans-serif';
     ctx.fillStyle = '#aaa';
     ctx.fillText('Date: ' + new Date().toLocaleDateString(), 400, 500);
+    ctx.fillText('Scytale Cipher Simulation', 400, 530);
 
     const link = document.createElement('a');
     link.download = 'scytale_certificate.png';
@@ -390,11 +598,9 @@ function render2DGrid(grid) {
     for (let f = 0; f < n; f++) {
         const rowDiv = document.createElement('div');
         rowDiv.className = 'grid-row';
-        rowDiv.dataset.face = f + 1; // 1-based index for logic
+        rowDiv.dataset.face = f + 1;
 
         const rowData = grid[f] || [];
-        // We render all cols up to maxCol to keep alignment
-
         const len = Math.max(maxCol, rowData.length);
 
         for (let c = 0; c < len; c++) {

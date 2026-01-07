@@ -25,8 +25,8 @@ body {
     font-family: var(--font-body);
     background-color: var(--bg-dark);
     color: var(--text-main);
-    height: 100vh;
-    overflow: hidden;
+    min-height: 100vh;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
 }
@@ -515,4 +515,178 @@ h2 {
     font-style: italic;
     font-size: 1rem;
     letter-spacing: normal;
+}
+
+/* Character Counter */
+.char-counter {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    margin-top: 8px;
+    text-align: right;
+}
+
+.char-counter.warning {
+    color: #f0ad4e;
+}
+
+.char-counter.error {
+    color: #d9534f;
+    font-weight: bold;
+}
+
+/* Strip Header with Copy Button */
+.strip-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.copy-btn {
+    background: transparent;
+    border: 1px solid var(--accent-gold);
+    color: var(--accent-gold);
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.copy-btn:hover {
+    background: var(--accent-gold);
+    color: var(--bg-dark);
+}
+
+.copy-btn.copied {
+    background: #28a745;
+    border-color: #28a745;
+    color: white;
+}
+
+/* Challenge Game Styles */
+.challenge-game {
+    max-width: 650px;
+}
+
+.game-progress {
+    display: flex;
+    justify-content: space-between;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 12px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.progress-label,
+.score-label {
+    font-size: 1rem;
+    color: var(--text-main);
+}
+
+.progress-label span,
+.score-label span {
+    color: var(--accent-gold);
+    font-weight: bold;
+}
+
+.challenge-input-group {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.challenge-input-group input {
+    flex: 1;
+    padding: 12px;
+    font-size: 1rem;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    color: white;
+}
+
+.challenge-input-group button {
+    background: var(--accent-gold);
+    border: none;
+    padding: 12px 24px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.challenge-feedback {
+    padding: 12px;
+    border-radius: 6px;
+    margin: 10px 0;
+    text-align: center;
+}
+
+.challenge-feedback.incorrect {
+    background: rgba(217, 83, 79, 0.2);
+    border: 1px solid #d9534f;
+    color: #f5a5a3;
+}
+
+.challenge-success {
+    text-align: center;
+    padding: 20px;
+    background: rgba(40, 167, 69, 0.1);
+    border: 1px solid #28a745;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+
+.challenge-success h3 {
+    color: #28a745;
+    margin-bottom: 10px;
+}
+
+.next-btn {
+    background: var(--accent-gold);
+    border: none;
+    padding: 12px 24px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.game-complete {
+    text-align: center;
+    padding: 30px;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(212, 175, 55, 0.05));
+    border: 2px solid var(--accent-gold);
+    border-radius: 12px;
+    margin-top: 20px;
+}
+
+.game-complete h3 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+}
+
+.game-complete p {
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+}
+
+.game-complete-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.game-complete-buttons button {
+    padding: 12px 24px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    border: none;
+}
+
+.reset-btn {
+    background: transparent;
+    border: 1px solid var(--accent-gold) !important;
+    color: var(--accent-gold);
 }
