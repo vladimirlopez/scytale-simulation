@@ -187,7 +187,8 @@ input[type="range"] {
 
 /* 3D Scene */
 .scene-3d {
-    flex: 2;
+    min-height: 400px;
+    flex: none;
     background: radial-gradient(circle at center, #2e2e3a 0%, #15161b 100%);
     border-radius: 12px;
     border: 1px solid #333;
@@ -424,6 +425,7 @@ h2 {
     padding: 15px;
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 20px;
 }
 
 .grid-content {
@@ -480,10 +482,16 @@ h2 {
 
 /* Decoded Message Display */
 .decoded-message-container {
-    background: rgba(0, 0, 0, 0.3);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg-dark);
+    /* Ensure it covers content behind when sticky */
     padding: 20px;
     border-radius: 8px;
     border: 2px solid var(--accent-gold);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    margin-bottom: 10px;
 }
 
 .decoded-message-container label {
