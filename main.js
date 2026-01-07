@@ -1,340 +1,343 @@
 
 import './style.css'
 
+// Default Configuration
+const CONFIG = {
+    faceHeight: 60, // Match CSS
+    defaultFaces: 6,
+    defaultMessage: "SCYTALE CIPHER"
+};
+
 // State
 const state = {
-    message: '',
-    faces: 4,
-    mode: 'encode', // 'encode' or 'decode'
-    rotation: 0
+    message: CONFIG.defaultMessage,
+    faces: CONFIG.defaultFaces,
+    mode: 'encode',
+    rotationX: 0
 };
 
 // Elements
-const cylinder = document.getElementById('cylinder');
-const messageInput = document.getElementById('message-input');
-const diameterSlider = document.getElementById('diameter-slider');
-const diameterValue = document.getElementById('diameter-value');
-const resultOutput = document.getElementById('result-output');
-const btnEncode = document.getElementById('mode-encode');
-const btnDecode = document.getElementById('mode-decode');
+const el = {
+    cylinder: document.getElementById('cylinder'),
+    stripContent: document.getElementById('strip-content'),
+    wrapper: document.getElementById('scytale-wrapper'),
+    input: document.getElementById('message-input'),
+    slider: document.getElementById('diameter-slider'),
+    sliderVal: document.getElementById('diameter-value'),
+    btnEncode: document.getElementById('mode-encode'),
+    btnDecode: document.getElementById('mode-decode'),
+    scene: document.querySelector('.scene-3d'),
+    gridContent: document.getElementById('grid-content'),
+    decodedMessage: document.getElementById('decoded-message')
+};
 
-const btnLearn = document.getElementById('btn-learn');
-const modalLearn = document.getElementById('modal-learn');
-const btnChallenge = document.getElementById('btn-challenge');
-const modalChallenge = document.getElementById('modal-challenge');
-const closeModals = document.querySelectorAll('.close-modal');
-
-// Init
 function init() {
-    bindEvents();
-    renderCylinder();
-    updateLogic(); // Initial calculation
+    try {
+        console.log("Initializing Scytale Sim...");
+
+        // Set initial values
+        if (el.input) el.input.value = state.message;
+        if (el.slider) el.slider.value = state.faces;
+        if (el.sliderVal) el.sliderVal.textContent = state.faces;
+
+        bindEvents();
+        renderCylinderStructure();
+        updateVisuals();
+
+        console.log("Initialization Complete.");
+    } catch (e) {
+        console.error("Scytale Init Error:", e);
+        alert("Simulation Error: " + e.message);
+    }
 }
 
 function bindEvents() {
     // Navigation
-    btnLearn.addEventListener('click', () => modalLearn.classList.remove('hidden'));
-    btnChallenge.addEventListener('click', () => modalChallenge.classList.remove('hidden'));
+    const btnLearn = document.getElementById('btn-learn');
+    const btnChallenge = document.getElementById('btn-challenge');
+    const closeModals = document.querySelectorAll('.close-modal');
+
+    if (btnLearn) btnLearn.addEventListener('click', () => document.getElementById('modal-learn').classList.remove('hidden'));
+    if (btnChallenge) btnChallenge.addEventListener('click', () => document.getElementById('modal-challenge').classList.remove('hidden'));
     closeModals.forEach(btn => btn.addEventListener('click', (e) => {
         e.target.closest('.modal').classList.add('hidden');
     }));
 
-    // Controls
-    messageInput.addEventListener('input', (e) => {
-        state.message = e.target.value;
-        updateLogic();
-    });
+    // Inputs
+    if (el.input) {
+        el.input.addEventListener('input', (e) => {
+            state.message = e.target.value;
+            updateVisuals();
+        });
+        // Handle paste to clean newlines
+        el.input.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text');
+            const cleanText = text.replace(/[\r\n]+/g, '');
 
-    diameterSlider.addEventListener('input', (e) => {
+            const start = el.input.selectionStart;
+            const end = el.input.selectionEnd;
+            const val = el.input.value;
+            const newVal = val.slice(0, start) + cleanText + val.slice(end);
+
+            el.input.value = newVal;
+            el.input.selectionStart = el.input.selectionEnd = start + cleanText.length;
+            state.message = newVal;
+            updateVisuals();
+        });
+    }
+
+    if (el.slider) el.slider.addEventListener('input', (e) => {
         state.faces = parseInt(e.target.value);
-        diameterValue.textContent = state.faces;
-        renderCylinder();
-        updateLogic();
+        el.sliderVal.textContent = state.faces;
+        renderCylinderStructure();
+        updateVisuals();
     });
 
-    btnEncode.addEventListener('click', () => setMode('encode'));
-    btnDecode.addEventListener('click', () => setMode('decode'));
+    if (el.btnEncode) el.btnEncode.addEventListener('click', () => setMode('encode'));
+    if (el.btnDecode) el.btnDecode.addEventListener('click', () => setMode('decode'));
 
-    // Drag to rotate
+    // Drag Rotation
     let isDragging = false;
-    let startX = 0;
-    let startRotation = 0;
+    let startY = 0;
+    let startRot = 0;
 
-    const container = document.querySelector('.scytale-container');
+    if (el.scene) {
+        el.scene.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startY = e.clientY;
+            startRot = state.rotationX;
+            el.scene.style.cursor = 'grabbing';
+        });
 
-    container.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        startX = e.clientX;
-        startRotation = state.rotation;
-        container.style.cursor = 'grabbing';
-    });
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const delta = e.clientY - startY;
+            state.rotationX = startRot - (delta * 0.5);
+            el.wrapper.style.transform = `rotateX(${state.rotationX}deg)`;
+        });
 
-    window.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        const delta = e.clientX - startX;
-        state.rotation = startRotation + (delta * 0.5);
-        updateRotation();
-    });
-
-    window.addEventListener('mouseup', () => {
-        isDragging = false;
-        container.style.cursor = 'grab';
-    });
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+            el.scene.style.cursor = 'grab';
+        });
+    }
 
     // Challenge
-    document.getElementById('btn-submit-challenge').addEventListener('click', checkChallenge);
-    document.getElementById('btn-download-cert').addEventListener('click', downloadCertificate);
+    const btnSubmit = document.getElementById('btn-submit-challenge');
+    if (btnSubmit) btnSubmit.addEventListener('click', checkChallenge);
+
+    const btnCert = document.getElementById('btn-download-cert');
+    if (btnCert) btnCert.addEventListener('click', downloadCertificate);
 }
 
 function setMode(mode) {
     state.mode = mode;
-    btnEncode.classList.toggle('active', mode === 'encode');
-    btnDecode.classList.toggle('active', mode === 'decode');
-    updateLogic();
+    el.btnEncode.classList.toggle('active', mode === 'encode');
+    el.btnDecode.classList.toggle('active', mode === 'decode');
+
+    // Reset Rotation to show Face 0
+    state.rotationX = 0;
+    if (el.wrapper) el.wrapper.style.transform = `rotateX(0deg)`;
+
+    updateVisuals();
 }
 
-const FACE_WIDTH = 50; // px
-
-function renderCylinder() {
-    // Limit rotation to avoid jumpiness? No, it's fine.
-
-    cylinder.innerHTML = '';
+function renderCylinderStructure() {
+    el.cylinder.innerHTML = '';
     const n = state.faces;
-    const angle = 360 / n;
-    // Calculate radius (apothem)
-    // Side = 2 * r * tan(PI/n) => r = Side / (2 * tan(PI/n))
-    const rad = (FACE_WIDTH / 2) / Math.tan(Math.PI / n);
+    const h = CONFIG.faceHeight;
+    const angleInfo = 360 / n;
+
+    // Apothem
+    const rad = (h / 2) / Math.tan(Math.PI / n);
 
     for (let i = 0; i < n; i++) {
         const face = document.createElement('div');
         face.className = 'face';
-        face.style.width = `${FACE_WIDTH}px`;
-        face.style.transform = `rotateY(${i * angle}deg) translateZ(${rad}px)`;
+        face.style.height = `${h}px`;
+
+        face.style.top = '50%';
+        face.style.marginTop = `-${h / 2}px`;
+
+        face.style.transform = `rotateX(${i * angleInfo}deg) translateZ(${rad}px)`;
         face.id = `face-${i}`;
-        cylinder.appendChild(face);
+        el.cylinder.appendChild(face);
     }
 }
 
-function updateRotation() {
-    cylinder.style.transform = `rotateY(${state.rotation}deg)`;
-}
-
-function updateLogic() {
-    const msg = state.message.replace(/[\r\n]+/g, ''); // Remove newlines
+function updateVisuals() {
+    const msg = state.message.replace(/[\r\n]+/g, '');
     const n = state.faces;
-    let output = '';
 
-    // Clear faces
-    document.querySelectorAll('.face').forEach(f => f.innerHTML = '');
+    // Clear
+    document.querySelectorAll('.face').forEach(f => {
+        f.innerHTML = '';
+        f.style.borderLeft = '';
+    });
+    el.stripContent.innerHTML = '';
+
+    let grid = {};
+
+    // PHYSICAL SCYTALE PROCESS:
+    // ENCODE: Write HORIZONTALLY on rod (Row-Major Fill), Unwrap strip (Column-Major Read)
+    // DECODE: Wrap strip around rod (Column-Major Fill), Read HORIZONTALLY (Row-Major Read)
 
     if (state.mode === 'encode') {
-        // Write across rows (faces), Read down columns
-        // We visualize: Text written horizontally across the rod's "unrolled" surface?
-        // Actually, on the rod, the text appears in a spiral.
-        // Let's visualize the "input" on the rod.
-        // If INPUT is "HELLO", and we are encoding.
-        // We place H on face 0, E on face 1...
-        // Visually: Face `i` gets char `k` if `k % n === i`.
-        // Wait, row-major vs column-major.
-        // Encode: Standard transpostion.
-        // Input written ROW by ROW.
-        // So "HELLO" (5 chars). Faces=2.
-        // Row 0: H E
-        // Row 1: L L
-        // Row 2: O
-        // On the rod:
-        // Face 0 (First "column" of the unrolled sheet? No.)
-        // Let's map "Grid" to "Faces".
-        // Vertical columns on the virtual paper = Faces on the rod?
-        // Usually, the strip is ONE line.
-        // Wrapping it creates rows.
-        // So if I have a strip "H L O" (Face 0), "E L" (Face 1).
-        // The message is "HELLO"? No.
-        // If I write "HELLO", I write H, then E, then L on the rod.
-        // This physically places them on adjacent faces.
-        // So Face 0 has H. Face 1 has E. Face 2 has L...
-        // When we finish a full turn (N faces), we are back at Face 0, but "one line down" (if holding rod vertically) or "one unit to right" (horiz).
-        // Let's assume vertical rod, text written top-down.
-        // Face 0: H, then (wrapping around)... next char on Face 0 is 'L' (if diameter=2, H E L L O => H(0), E(1), L(0), L(1), O(0)).
-        // Yes.
-        // Face 0 has chars at indices: 0, 0+n, 0+2n...
-        // Face 1 has chars at: 1, 1+n, 1+2n...
+        // ENCODE: Write message HORIZONTALLY on each face
+        // Face 0 gets first ROW_LEN chars, Face 1 gets next, etc.
+        let ROW_LEN = Math.ceil(msg.length / n);
+        if (ROW_LEN < 1) ROW_LEN = 1;
 
-        // Visualization: Populate faces.
         for (let i = 0; i < msg.length; i++) {
-            const faceIndex = i % n;
-            const char = msg[i];
-            addCharToFace(faceIndex, char);
+            const faceIdx = Math.floor(i / ROW_LEN); // Which face (row)
+            const colIdx = i % ROW_LEN;              // Which column position
+
+            if (!grid[faceIdx]) grid[faceIdx] = [];
+            grid[faceIdx][colIdx] = msg[i];
         }
 
-        // Output: Read each face sequentially.
-        // Face 0's content + Face 1's content ...
-        for (let f = 0; f < n; f++) {
-            const faceContent = getFaceContent(f, msg, n);
-            output += faceContent;
+        // Generate Ciphertext: Read COLUMN-BY-COLUMN (unwrap the strip)
+        // The strip winds around the rod, so we read down columns
+        let ciphertext = "";
+        for (let c = 0; c < ROW_LEN; c++) {
+            for (let f = 0; f < n; f++) {
+                if (grid[f] && grid[f][c] !== undefined) {
+                    ciphertext += grid[f][c];
+                }
+            }
         }
+
+        renderStrip(ciphertext);
+        renderFaces(grid);
+        render2DGrid(grid);
+        displayDecodedMessage(''); // Clear in encode mode
 
     } else {
-        // Decode
-        // Input is the Scrambled text.
-        // We want to reconstruct the original "Across" write.
-        // We fill the faces such that reading across gives the meaningful message.
-        // BUT the user puts in the scrambled message.
-        // Visualization: We want to show the letters on the rod such that they reveal the message?
-        // Or do we show the scrambled message on the rod?
-        // If we wrap the strip (message), it aligns to form the message.
-        // "Scrambled Message" = The Strip.
-        // So we just wrap the message around the rod.
-        // Input: "HLOEL" (from previous example). 
-        // We wrap it: H goes to Face 0. L goes to Face 1? NO.
-        // The strip wraps helically. 
-        // H is at pos 0 on strip. L is at pos 1 on strip.
-        // If we wrap it, H is at Face 0. L is at Face 1. O is at Face 2...
-        // Visual: Just wrap the input string around the faces.
-        // FaceIndex = i % n.
-        // Output: Read ACROSS the rod.
-        // i.e. Read Row 0 (Face 0 ch 0, Face 1 ch 0...), then Row 1.
+        // DECODE: Wrap ciphertext strip around rod (Column-Major Fill)
+        // Strip winds around, so each position goes to successive faces
+        const ciphertext = msg;
 
-        for (let i = 0; i < msg.length; i++) {
-            const faceIndex = i % n;
-            const char = msg[i];
-            addCharToFace(faceIndex, char);
+        for (let i = 0; i < ciphertext.length; i++) {
+            const faceIdx = i % n;                   // Face cycles as strip wraps
+            const colIdx = Math.floor(i / n);        // Move to next column every N chars
+
+            if (!grid[faceIdx]) grid[faceIdx] = [];
+            grid[faceIdx][colIdx] = ciphertext[i];
         }
 
-        // To generate output, we read "Ring by Ring".
-        // 1st ring: chars at indices 0, 1, ... n-1 (which are Face 0 ch 0, Face 1 ch 0...)
-        // Wait. My logic for 'Encode' placed H on Face 0, E on Face 1.
-        // That means the Input "HELLO" was written *around* the rod.
-        // And the "Output" was reading the strip (Face 0 vertical, then Face 1 vertical).
-        // So 'Decode' operation:
-        // User inputs the 'Strip' content (Output of Encode).
-        // We wrap it?
-        // If input is "HLOEL" (Strip content).
-        // And we wrap it purely sequentially?
-        // H -> Face 0. L -> Face 1. O -> Face 0 (wrap). E -> Face 1. L -> Face 0.
-        // This results in Face 0: H O L. Face 1: L E.
-        // Read across: H L (row 0), O E (row 1), L (row 2). -> HLOEL? No.
-        // Decode implies we want to GET "HELLO".
-        // How do we put "HLOEL" onto the rod so it reads "HELLO"?
-        // The strip contained: H, L, O (from Face 0), E, L (from Face 1).
-        // So we need to put the first chunk on Face 0.
-        // Chunk size = Ceil(L / n).
-        // Let k = Ceil(L/n).
-        // Face 0 gets msg[0..k-1].
-        // Face 1 gets msg[k..2k-1].
-
-        // Visual:
-        const rows = Math.ceil(msg.length / n);
-        // Be careful with uneven rows.
-        // Standard scytale often assumes filled rectangle, but let's handle partial.
-        // If len=5, n=2. Rows=3.
-        // Cols (Faces) filled:
-        // Face 0 gets 3 chars (indices 0, 2, 4 of original "HELLO", which are H, L, O).
-        // Face 1 gets 2 chars (indices 1, 3 of original "HELLO", which are E, L).
-        // So Input string "HLOEL" has H,L,O first, then E,L.
-        // We place Input[0..2] to Face 0. Input[3..4] to Face 1.
-
-        let pointer = 0;
+        // The plaintext is now visible HORIZONTALLY on each face (Row-Major Read)
+        let plaintext = "";
         for (let f = 0; f < n; f++) {
-            // How many chars in this face?
-            // Total Length L.
-            // Faces 0 to (L % n - 1) have Floor(L/n) + 1 chars.
-            // Remaining faces have Floor(L/n) chars.
-            const baseLen = Math.floor(msg.length / n);
-            const remainder = msg.length % n;
-            const faceLen = (f < remainder || remainder === 0) ? baseLen + (remainder === 0 ? 0 : 1) : baseLen;
-            // Wait, standard transposition might fill top rows vs full columns.
-            // If we Encoded by reading Face 0 then Face 1...
-            // Face 0 had H(0), L(2), O(4). (Indices of original).
-            // Face 1 had E(1), L(3).
-            // So yes, Face 0 has 3 chars. Face 1 has 2.
-            // This matches logic: Remainder 1 (5%2). Face 0 gets +1.
-
-            // But wait. "H L O" came from H(0), L(2), O(4).
-            // Wait, 0, 0+2, 0+4.
-            // Face 1: 1, 3.
-            // Correct.
-
-            for (let j = 0; j < faceLen; j++) {
-                if (pointer < msg.length) {
-                    addCharToFace(f, msg[pointer]);
-                    pointer++;
-                }
+            if (grid[f]) {
+                plaintext += grid[f].join('');
             }
         }
 
-        // Now Read Across to get output
-        // Read Face0[0], Face1[0]... FaceN[0]
-        // Then Face0[1]...
-        let decoded = '';
-        const maxRows = Math.ceil(msg.length / n);
-        for (let r = 0; r < maxRows; r++) {
-            for (let f = 0; f < n; f++) {
-                const faceDiv = document.getElementById(`face-${f}`);
-                if (faceDiv && faceDiv.children[r]) {
-                    decoded += faceDiv.children[r].textContent;
-                }
-            }
-        }
-        output = decoded;
+        renderStrip(ciphertext);
+        renderFaces(grid);
+        render2DGrid(grid);
+        displayDecodedMessage(plaintext);
     }
-
-    resultOutput.textContent = output;
-    checkChallenge(false); // Check silently?
 }
 
-function addCharToFace(faceIdx, char) {
-    const f = document.getElementById(`face-${faceIdx}`);
-    const div = document.createElement('div');
-    div.className = 'face-letter';
-    div.textContent = char;
-    f.appendChild(div);
+function renderFaces(grid) {
+    const n = state.faces;
+    let maxCol = 15;
+    Object.values(grid).forEach(row => { if (row.length > maxCol) maxCol = row.length; });
+
+    for (let f = 0; f < n; f++) {
+        const faceDiv = document.getElementById(`face-${f}`);
+        // Add Marker to Face 0
+        if (f === 0) {
+            faceDiv.style.borderLeft = "5px solid #d4af37"; // Gold-er border
+            // Check if marker exists? simpler to clear HTML in updateVisuals, which calls this.
+            // But main clear is before.
+            const marker = document.createElement('div');
+            marker.textContent = "START READING HERE";
+            marker.style.position = "absolute";
+            marker.style.left = "-140px"; // Shift left
+            marker.style.top = "15px";
+            marker.style.color = "#d4af37";
+            marker.style.fontSize = "12px";
+            marker.style.fontWeight = "bold";
+            marker.style.whiteSpace = "nowrap";
+            faceDiv.appendChild(marker);
+
+            // Arrow
+            const arrow = document.createElement('div');
+            arrow.textContent = "➔";
+            arrow.style.position = "absolute";
+            arrow.style.left = "-20px";
+            arrow.style.top = "10px";
+            arrow.style.color = "#d4af37";
+            arrow.style.fontSize = "24px";
+            faceDiv.appendChild(arrow);
+
+        } else {
+            faceDiv.style.borderLeft = "";
+        }
+
+        const rowData = grid[f] || [];
+        // Render only used columns to avoid overflow or empty divs
+        const len = Math.max(maxCol, rowData.length);
+        for (let c = 0; c < len; c++) {
+            const char = rowData[c] || '';
+            const span = document.createElement('div');
+            span.className = 'face-char';
+            span.textContent = char;
+            faceDiv.appendChild(span);
+        }
+    }
 }
 
-function getFaceContent(faceIdx, fullMsg, n) {
-    // Logic helper if needed, but we already have DOM content.
-    // Let's reconstruct from logic to be safe or read DOM.
-    // Read DOM is easier since we just filled it.
-    const f = document.getElementById(`face-${faceIdx}`);
-    return Array.from(f.children).map(c => c.textContent).join('');
+function renderStrip(text) {
+    if (!text) return;
+    for (let i = 0; i < text.length; i++) {
+        const d = document.createElement('div');
+        d.className = 'strip-char';
+        d.textContent = text[i];
+        el.stripContent.appendChild(d);
+    }
 }
 
+function displayDecodedMessage(plaintext) {
+    if (!el.decodedMessage) return;
+
+    if (!plaintext || plaintext.length === 0) {
+        el.decodedMessage.textContent = 'Switch to Decode mode to see the decoded message';
+        el.decodedMessage.classList.add('empty');
+    } else {
+        el.decodedMessage.textContent = plaintext;
+        el.decodedMessage.classList.remove('empty');
+    }
+}
 
 // Challenge Logic
-// Challenge: "SCYTALE_IS_COOL" (15 chars). Faces: 3.
-// Encoded:
-// Face0: S (0), T (3), E (6), S (9), O (12). -> STESO
-// Face1: C (1), A (4), _ (7), _ (10), O (13). -> CA__O
-// Face2: Y (2), L (5), I (8), C (11), L (14). -> YLICL
-// Ciphertext: "STESOCA__OYLICL"
-const CHALLENGE_ENC = "STESOCA__OYLICL";
+// SCYTALE_IS_COOL encoded with 3 faces using physical process:
+// Row-Major Fill: Face 0=SCYTA, Face 1=LE_IS, Face 2=_COOL
+// Column-Major Read: S-L-_, C-E-C, Y-_-O, T-I-O, A-S-L
+const CHALLENGE_CIPHER_REAL = "SL_CECY_OTIOASL";
 const CHALLENGE_KEY = 3;
 const CHALLENGE_ANSWER = "SCYTALE_IS_COOL";
 
-document.querySelector('.challenge-code').textContent = CHALLENGE_ENC;
-document.getElementById('challenge-hint-faces').textContent = CHALLENGE_KEY;
+const codeEl = document.querySelector('.challenge-code');
+if (codeEl) codeEl.textContent = CHALLENGE_CIPHER_REAL;
 
-function checkChallenge(isSubmit) {
-    const val = document.getElementById('challenge-input').value.trim().toUpperCase();
-    // Allow spaces or underscores
-    const cleanVal = val.replace(/\s/g, '_');
+const hintEl = document.getElementById('challenge-hint-faces');
+if (hintEl) hintEl.textContent = CHALLENGE_KEY;
 
-    if (isSubmit && isEvent) {
-        // 'isEvent' is redundant, assume click listener passes event object
-    }
+function checkChallenge() {
+    const input = document.getElementById('challenge-input');
+    if (!input) return;
 
-    // Actually, this function is called by event listener.
-    // If 'isSubmit' is event, it's true-ish.
-}
-
-document.getElementById('btn-submit-challenge').onclick = () => {
-    const val = document.getElementById('challenge-input').value.toUpperCase().replace(/\s/g, '_');
+    const val = input.value.toUpperCase().replace(/\s/g, '_');
     if (val === CHALLENGE_ANSWER) {
         document.getElementById('challenge-success').classList.remove('hidden');
     } else {
         alert('Incorrect! Try setting the rod faces to ' + CHALLENGE_KEY + ' and decoding.');
     }
-};
+}
 
 function downloadCertificate() {
     const canvas = document.createElement('canvas');
@@ -352,21 +355,21 @@ function downloadCertificate() {
     ctx.strokeRect(20, 20, 760, 560);
 
     // Text
-    ctx.font = '40px Cinzel';
+    ctx.font = '40px Cinzel'; // Font loading might be issue in canvas, usually fallbacks
     ctx.fillStyle = '#d4af37';
     ctx.textAlign = 'center';
     ctx.fillText('CERTIFICATE OF MASTERY', 400, 100);
 
-    ctx.font = '20px Outfit';
+    ctx.font = '24px sans-serif';
     ctx.fillStyle = '#e0e0e0';
     ctx.fillText('This certifies that the student has successfully', 400, 200);
     ctx.fillText('cracked the Spartan Scytale Cipher.', 400, 240);
 
-    ctx.font = '30px Courier New';
+    ctx.font = '30px monospace';
     ctx.fillStyle = '#fff';
     ctx.fillText(CHALLENGE_ANSWER, 400, 350);
 
-    ctx.font = '16px Outfit';
+    ctx.font = '16px sans-serif';
     ctx.fillStyle = '#aaa';
     ctx.fillText('Date: ' + new Date().toLocaleDateString(), 400, 500);
 
@@ -376,7 +379,36 @@ function downloadCertificate() {
     link.click();
 }
 
+function render2DGrid(grid) {
+    if (!el.gridContent) return;
+    el.gridContent.innerHTML = '';
 
-updateRotation(); // Visual init
+    const n = state.faces;
+    let maxCol = 15;
+    Object.values(grid).forEach(row => { if (row.length > maxCol) maxCol = row.length; });
+
+    for (let f = 0; f < n; f++) {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'grid-row';
+        rowDiv.dataset.face = f + 1; // 1-based index for logic
+
+        const rowData = grid[f] || [];
+        // We render all cols up to maxCol to keep alignment
+
+        const len = Math.max(maxCol, rowData.length);
+
+        for (let c = 0; c < len; c++) {
+            const char = rowData[c] || '';
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            if (c === 0 && state.mode === 'decode') cell.classList.add('first-col');
+            cell.textContent = char;
+            rowDiv.appendChild(cell);
+        }
+
+        el.gridContent.appendChild(rowDiv);
+    }
+}
+
+// Start
 init();
-
